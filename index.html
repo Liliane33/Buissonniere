@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L'École Buissonnière</title>
+    <!-- Polyfill pour process.env pour éviter les erreurs ReferenceError: process is not defined -->
+    <script>
+      window.process = { env: { API_KEY: "" } };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -25,6 +29,19 @@
             40% {transform: translateY(-10px);}
             60% {transform: translateY(-5px);}
         }
+        #fallback-error {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: white;
+            color: #ef4444;
+            padding: 2rem;
+            text-align: center;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 <script type="importmap">
 {
@@ -38,6 +55,30 @@
 </script>
 </head>
 <body class="m-0 p-0">
-    <div id="root"></div>
+    <div id="root">
+        <!-- Loader temporaire pour éviter l'effet page blanche -->
+        <div class="flex items-center justify-center h-screen bg-[#f0f9ff]">
+            <div class="text-center animate-pulse">
+                <span class="text-6xl">🦊</span>
+                <p class="mt-4 text-orange-500 font-bold">Chargement de l'école...</p>
+            </div>
+        </div>
+    </div>
+    <div id="fallback-error">
+        <h1 class="text-4xl font-bold">Oups !</h1>
+        <p class="mt-4">L'application n'a pas pu démarrer. Vérifiez votre connexion ou la configuration de la clé API.</p>
+    </div>
+
+    <!-- Import explicite du point d'entrée de l'application -->
+    <script type="module" src="./index.tsx"></script>
+    
+    <script>
+      // Petit script de secours si React ne monte pas après 5 secondes
+      setTimeout(() => {
+        if (document.getElementById('root').innerHTML.includes('Chargement')) {
+          document.getElementById('fallback-error').style.display = 'flex';
+        }
+      }, 5000);
+    </script>
 </body>
 </html>

@@ -1,9 +1,24 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Accès sécurisé à la clé API
+const getApiKey = () => {
+  return process?.env?.API_KEY || (window as any).process?.env?.API_KEY || "";
+};
 
-// Variables globales pour gérer l'unique flux audio
+// Initialisation différée du client AI
+let aiInstance: GoogleGenAI | null = null;
+const getAi = () => {
+  if (!aiInstance) {
+    const key = getApiKey();
+    if (!key) {
+      console.warn("API_KEY manquante dans process.env. L'audio ne fonctionnera pas.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey: key });
+  }
+  return aiInstance;
+};
+
 let audioCtx: AudioContext | null = null;
 let currentSource: AudioBufferSourceNode | null = null;
 
@@ -14,9 +29,6 @@ function getAudioContext() {
   return audioCtx;
 }
 
-/**
- * Assure que l'AudioContext est actif (nécessaire suite aux politiques d'auto-play des navigateurs)
- */
 export const resumeAudioIfNeeded = async () => {
   const ctx = getAudioContext();
   if (ctx.state === 'suspended') {
@@ -29,14 +41,11 @@ export const stopSpeaking = () => {
     try {
       currentSource.stop();
       currentSource.disconnect();
-    } catch (e) {
-      // Déjà arrêté
-    }
+    } catch (e) { }
     currentSource = null;
   }
 };
 
-// Custom decoder for raw PCM data returned by Gemini TTS
 function decode(base64: string) {
   try {
     const binaryString = atob(base64);
@@ -72,14 +81,13 @@ async function decodeAudioData(
 }
 
 export const speakInstruction = async (text: string) => {
-  // On s'assure que l'audio est débloqué par le navigateur
+  const ai = getAi();
+  if (!getApiKey()) return;
+
   await resumeAudioIfNeeded();
-  
-  // On arrête la voix précédente avant de commencer
   stopSpeaking();
 
   try {
-    console.log("Gemini TTS Request:", text);
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: `Parle doucement à un enfant de 4 ans : ${text}` }] }],
@@ -94,10 +102,7 @@ export const speakInstruction = async (text: string) => {
     });
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) {
-      console.warn("Aucune donnée audio reçue de l'API");
-      return;
-    }
+    if (!base64Audio) return;
 
     const ctx = getAudioContext();
     const audioBuffer = await decodeAudioData(
@@ -115,9 +120,7 @@ export const speakInstruction = async (text: string) => {
     source.start();
     
     source.onended = () => {
-      if (currentSource === source) {
-        currentSource = null;
-      }
+      if (currentSource === source) currentSource = null;
     };
   } catch (error) {
     console.error("TTS failed:", error);
