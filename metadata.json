@@ -1,0 +1,7 @@
+{
+  "name": "L'École Buissonnière",
+  "description": "Une application éducative interactive pour les enfants de 3 à 5 ans, axée sur le langage, les mathématiques et la découverte du monde avec guidage vocal.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
